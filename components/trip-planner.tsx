@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { formatKoreanDate } from "@/lib/date";
-import { getDestinationPreset } from "@/lib/destination-presets";
+import { destinationPresets, getDestinationPreset } from "@/lib/destination-presets";
 import { downloadText, listTrips, makeShareUrl, saveTrip } from "@/lib/storage";
 import type { Trip, TripDraft } from "@/lib/types";
 
@@ -42,6 +42,21 @@ const initialDraft: TripDraft = {
 };
 
 const interestOptions = ["맛집", "산책", "전시", "야경", "쇼핑"];
+const destinationOptions = destinationPresets.map((preset) => preset.match[0]);
+
+function SelectedSummary({ values, onRemove }: { values: string[]; onRemove: (value: string) => void }) {
+  if (!values.length) return null;
+
+  return (
+    <div className="selected-row">
+      {values.map((value) => (
+        <button className="selected-token" type="button" key={value} onClick={() => onRemove(value)} title="선택 해제">
+          {value} ×
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function tripToMarkdown(trip: Trip) {
   const lines = [
@@ -106,6 +121,7 @@ export function TripPlanner() {
   const [customMustVisit, setCustomMustVisit] = useState("");
   const [selectedFoodAreas, setSelectedFoodAreas] = useState<string[]>([]);
   const [customFood, setCustomFood] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
     const trips = listTrips();
@@ -166,6 +182,10 @@ export function TripPlanner() {
       mustVisits: selectedMustVisits.join(", "),
       food: selectedFoodAreas.join(", ")
     };
+  }
+
+  function selectDestination(destination: string) {
+    setDraft({ ...draft, destination });
   }
 
   async function callAgent(body: unknown) {
@@ -295,6 +315,16 @@ export function TripPlanner() {
                 <input id="budget" value={draft.budget} onChange={(event) => setDraft({ ...draft, budget: event.target.value })} />
               </div>
               <div className="field full">
+                <label>빠른 목적지 선택</label>
+                <div className="chip-row">
+                  {destinationOptions.map((item) => (
+                    <button className={`chip ${draft.destination === item ? "selected" : ""}`} type="button" key={item} onClick={() => selectDestination(item)}>
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="field full">
                 <label>관심사</label>
                 <div className="chip-row">
                   {interestOptions.map((item) => (
@@ -308,9 +338,7 @@ export function TripPlanner() {
                     </button>
                   ))}
                 </div>
-              </div>
-              <div className="field full">
-                <label htmlFor="customInterest">관심사 직접 추가</label>
+                <SelectedSummary values={selectedInterests} onRemove={(value) => setSelectedInterests(selectedInterests.filter((item) => item !== value))} />
                 <div className="inline-add">
                   <input id="customInterest" value={customInterest} onChange={(event) => setCustomInterest(event.target.value)} placeholder="예: 온천, 서점, 아이와 함께, 사진 명소" />
                   <button className="btn" type="button" onClick={() => addCustom(customInterest, selectedInterests, setSelectedInterests, setCustomInterest)}>
@@ -332,9 +360,7 @@ export function TripPlanner() {
                     </button>
                   ))}
                 </div>
-              </div>
-              <div className="field full">
-                <label htmlFor="customMustVisit">장소 직접 추가</label>
+                <SelectedSummary values={selectedMustVisits} onRemove={(value) => setSelectedMustVisits(selectedMustVisits.filter((item) => item !== value))} />
                 <div className="inline-add">
                   <input id="customMustVisit" value={customMustVisit} onChange={(event) => setCustomMustVisit(event.target.value)} placeholder="예: 예약한 호텔, 친구가 추천한 카페" />
                   <button className="btn" type="button" onClick={() => addCustom(customMustVisit, selectedMustVisits, setSelectedMustVisits, setCustomMustVisit)}>
@@ -356,9 +382,7 @@ export function TripPlanner() {
                     </button>
                   ))}
                 </div>
-              </div>
-              <div className="field full">
-                <label htmlFor="customFood">음식 취향 직접 추가</label>
+                <SelectedSummary values={selectedFoodAreas} onRemove={(value) => setSelectedFoodAreas(selectedFoodAreas.filter((item) => item !== value))} />
                 <div className="inline-add">
                   <input id="customFood" value={customFood} onChange={(event) => setCustomFood(event.target.value)} placeholder="예: 라멘, 해산물, 채식, 디저트, 아이 동반 식당" />
                   <button className="btn" type="button" onClick={() => addCustom(customFood, selectedFoodAreas, setSelectedFoodAreas, setCustomFood)}>
@@ -367,9 +391,16 @@ export function TripPlanner() {
                 </div>
               </div>
               <div className="field full">
-                <label htmlFor="avoid">피하고 싶은 것</label>
-                <textarea id="avoid" value={draft.avoid} onChange={(event) => setDraft({ ...draft, avoid: event.target.value })} />
+                <button className="btn subtle" type="button" onClick={() => setShowAdvanced(!showAdvanced)}>
+                  {showAdvanced ? "고급 옵션 닫기" : "고급 옵션 열기"}
+                </button>
               </div>
+              {showAdvanced ? (
+                <div className="field full">
+                  <label htmlFor="avoid">피하고 싶은 것</label>
+                  <textarea id="avoid" value={draft.avoid} onChange={(event) => setDraft({ ...draft, avoid: event.target.value })} />
+                </div>
+              ) : null}
               <div className="field full">
                 <label>비 오는 날 대안</label>
                 <div className="chip-row">
