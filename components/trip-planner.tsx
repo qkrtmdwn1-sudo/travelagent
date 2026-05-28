@@ -5,7 +5,6 @@ import {
   CalendarDays,
   CheckCircle2,
   Clock,
-  Copy,
   Download,
   ExternalLink,
   FileDown,
@@ -21,7 +20,7 @@ import {
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { formatKoreanDate } from "@/lib/date";
 import { destinationPresets, getDestinationPreset } from "@/lib/destination-presets";
-import { downloadText, listTrips, makeShareUrl, saveTrip } from "@/lib/storage";
+import { downloadText, listTrips, saveTrip } from "@/lib/storage";
 import type { Trip, TripDraft } from "@/lib/types";
 
 const today = new Date();
@@ -221,10 +220,9 @@ export function TripPlanner() {
   }
 
   async function handleShare() {
-    if (!trip) return;
-    const url = makeShareUrl(trip);
+    const url = window.location.origin;
     await navigator.clipboard.writeText(url);
-    setShareMessage("읽기 전용 공유 링크를 복사했습니다.");
+    setShareMessage("친구가 자기 여행을 만들 수 있는 앱 주소를 복사했습니다.");
   }
 
   function exportMarkdown() {
@@ -443,9 +441,6 @@ export function TripPlanner() {
                 <div className="button-row no-print">
                   <button className="btn" type="button" onClick={handleShare}>
                     <Share2 size={18} /> 공유
-                  </button>
-                  <button className="btn icon" type="button" onClick={() => navigator.clipboard.writeText(JSON.stringify(trip, null, 2))} title="JSON 복사">
-                    <Copy size={18} />
                   </button>
                 </div>
               </div>
