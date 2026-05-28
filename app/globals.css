@@ -265,6 +265,13 @@ textarea:focus {
   color: var(--brand-dark);
 }
 
+.helper-text {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .day-list {
   display: grid;
   gap: 14px;

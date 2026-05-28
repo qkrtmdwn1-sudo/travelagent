@@ -64,7 +64,7 @@ const dayThemes = [
 
 function uniquePick(candidates: string[], used: Set<string>, fallback: string) {
   const picked = candidates.find((candidate) => candidate && !used.has(candidate));
-  const value = picked || `${fallback} ${used.size + 1}`;
+  const value = picked || fallback;
   used.add(value);
   return value;
 }
@@ -72,14 +72,14 @@ function uniquePick(candidates: string[], used: Set<string>, fallback: string) {
 function dayTemplate(destination: string, dayIndex: number, pace: TripDraft["pace"], mustVisits: string[], usedPlaces: Set<string>): ItineraryItem[] {
   const relaxed = pace === "여유롭게";
   const theme = dayThemes[dayIndex % dayThemes.length];
-  const featured = uniquePick([mustVisits[dayIndex], theme.morning, theme.fallback], usedPlaces, theme.fallback);
-  const lunch = uniquePick([`${theme.area} 점심 맛집`, "근처 현지 식당"], usedPlaces, "점심 맛집");
-  const afternoon = uniquePick([theme.afternoon], usedPlaces, "오후 일정");
-  const evening = uniquePick([theme.evening], usedPlaces, "저녁 일정");
+  const featured = uniquePick([mustVisits[dayIndex], mustVisits[dayIndex + 1], mustVisits[dayIndex + 2]], usedPlaces, `${destination} 추천 장소 확인 필요`);
+  const lunch = uniquePick([`${featured} 근처 식당 후보`], usedPlaces, `${destination} 식당 후보 확인 필요`);
+  const afternoon = uniquePick([mustVisits[dayIndex + 3], theme.afternoon], usedPlaces, `${destination} 오후 후보 확인 필요`);
+  const evening = uniquePick([mustVisits[dayIndex + 4], theme.evening], usedPlaces, `${destination} 저녁 후보 확인 필요`);
 
   if (relaxed) {
     return [
-      createItem(destination, "10:00", featured, "하루를 급하게 시작하지 않고 핵심 장소 하나를 깊게 둘러봅니다.", "숙소에서 대중교통 또는 택시로 20-35분", "1인 15,000-35,000원"),
+      createItem(destination, "10:00", featured, "선택한 후보를 중심으로 하루를 급하게 시작하지 않고 깊게 둘러봅니다.", "숙소에서 대중교통 또는 택시로 20-35분", "입장료 확인 필요"),
       createItem(destination, "12:30", lunch, "이동을 줄이기 위해 오전 동선 근처에서 점심을 잡습니다.", "도보 10분 이내", "1인 20,000-45,000원", false, "지역 대표 메뉴"),
       createItem(destination, "15:00", afternoon, "휴식 시간을 넣어 체력 부담을 낮추고 날씨가 나쁘면 실내 카페나 전시로 대체합니다.", "도보 또는 짧은 택시 이동", "1인 10,000-25,000원"),
       createItem(destination, "18:00", evening, "예약 가능한 식당을 우선 확인하고 숙소 복귀가 쉬운 지역으로 잡습니다.", "대중교통 15-25분", "1인 30,000-70,000원", true, "예약 권장")
@@ -87,7 +87,7 @@ function dayTemplate(destination: string, dayIndex: number, pace: TripDraft["pac
   }
 
   return [
-    createItem(destination, "09:00", featured, "대표 명소를 오전에 배치해 혼잡을 줄이고 사진 찍기 좋은 시간을 노립니다.", "대중교통 20-40분", "1인 15,000-40,000원"),
+      createItem(destination, "09:00", featured, "선택한 장소를 오전에 배치해 혼잡을 줄이고 사진 찍기 좋은 시간을 노립니다.", "대중교통 20-40분", "입장료 확인 필요"),
     createItem(destination, "11:30", uniquePick([`${theme.area} 골목 탐방`], usedPlaces, "골목 탐방"), "관심사에 맞춰 쇼핑, 전시, 소품샵, 서점 중 하나를 선택해 둘러봅니다.", "도보 10-20분", "선택 지출"),
     createItem(destination, "13:00", lunch, "웨이팅이 길면 근처 2순위 식당으로 바꾸기 쉽게 잡습니다.", "도보 10분 이내", "1인 20,000-50,000원", false, "현지 인기 메뉴"),
     createItem(destination, "15:00", afternoon, "날씨에 따라 실내/야외를 바꿀 수 있는 오후 일정입니다.", "대중교통 15-30분", "1인 10,000-35,000원"),
@@ -102,7 +102,7 @@ export function buildFallbackTrip(draft: TripDraft): Trip {
   const checkedAt = nowIso();
   const usedPlaces = new Set<string>();
   const preset = getDestinationPreset(draft.destination);
-  const recommendedMustVisits = [...mustVisits, ...preset.mustVisits];
+  const recommendedMustVisits = [...mustVisits, ...preset.mustVisits].filter(Boolean);
 
   const days: ItineraryDay[] = dates.map((date, index) => ({
     id: makeId("day"),

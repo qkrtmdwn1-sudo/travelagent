@@ -1,5 +1,6 @@
 export type DestinationPreset = {
   match: string[];
+  label: string;
   neighborhoods: string[];
   mustVisits: string[];
   foodAreas: string[];
@@ -10,6 +11,7 @@ export type DestinationPreset = {
 export const destinationPresets: DestinationPreset[] = [
   {
     match: ["도쿄", "tokyo", "東京"],
+    label: "도쿄",
     neighborhoods: ["시부야", "신주쿠", "아사쿠사", "긴자", "우에노", "다이칸야마", "오모테산도", "롯폰기"],
     mustVisits: ["시부야 스카이", "센소지", "긴자", "우에노 공원", "도쿄역", "메이지 신궁"],
     foodAreas: ["츠키지 장외시장", "신주쿠 오모이데요코초", "긴자", "에비스", "가구라자카"],
@@ -18,6 +20,7 @@ export const destinationPresets: DestinationPreset[] = [
   },
   {
     match: ["오사카", "osaka", "大阪"],
+    label: "오사카",
     neighborhoods: ["난바", "도톤보리", "우메다", "신세카이", "나카자키초", "덴노지", "교토 당일치기"],
     mustVisits: ["도톤보리", "오사카성", "우메다 스카이빌딩", "구로몬시장", "신세카이"],
     foodAreas: ["도톤보리", "구로몬시장", "신세카이", "우메다", "덴마"],
@@ -26,6 +29,7 @@ export const destinationPresets: DestinationPreset[] = [
   },
   {
     match: ["후쿠오카", "fukuoka", "福岡"],
+    label: "후쿠오카",
     neighborhoods: ["하카타", "텐진", "나카스", "오호리공원", "다자이후", "모모치해변"],
     mustVisits: ["오호리공원", "다자이후 텐만구", "캐널시티", "후쿠오카 타워", "나카스 포장마차"],
     foodAreas: ["하카타역", "텐진", "나카스", "야쿠인", "이마이즈미"],
@@ -34,6 +38,7 @@ export const destinationPresets: DestinationPreset[] = [
   },
   {
     match: ["제주", "jeju", "제주도"],
+    label: "제주",
     neighborhoods: ["제주시", "애월", "한림", "서귀포", "성산", "중문", "표선"],
     mustVisits: ["성산일출봉", "우도", "협재해변", "천지연폭포", "오설록", "새별오름"],
     foodAreas: ["동문시장", "애월 카페거리", "서귀포 매일올레시장", "성산", "중문"],
@@ -42,6 +47,7 @@ export const destinationPresets: DestinationPreset[] = [
   },
   {
     match: ["파리", "paris"],
+    label: "파리",
     neighborhoods: ["마레", "생제르맹", "몽마르트르", "루브르", "에펠탑", "라탱지구", "오페라"],
     mustVisits: ["루브르", "에펠탑", "오르세 미술관", "몽마르트르", "노트르담 주변", "튈르리 정원"],
     foodAreas: ["마레", "생제르맹", "몽마르트르", "바스티유", "오페라"],
@@ -52,11 +58,12 @@ export const destinationPresets: DestinationPreset[] = [
 
 export const genericPreset: DestinationPreset = {
   match: [],
-  neighborhoods: ["중심가", "역사 지구", "현지 시장", "전망 좋은 구역", "카페 거리", "강변 또는 해변"],
-  mustVisits: ["대표 랜드마크", "현지 시장", "박물관 또는 미술관", "전망 포인트", "산책하기 좋은 거리"],
-  foodAreas: ["중심가 맛집 거리", "현지 시장", "숙소 근처 식당가", "카페 거리"],
-  rainyOptions: ["대표 박물관", "실내 쇼핑몰", "카페", "전시 공간", "시장"],
-  dayAreas: ["중심가", "역사 지구", "전시/쇼핑 구역", "자연/전망 구역", "근교"]
+  label: "직접 입력",
+  neighborhoods: [],
+  mustVisits: [],
+  foodAreas: [],
+  rainyOptions: [],
+  dayAreas: []
 };
 
 export function getDestinationPreset(destination: string) {

@@ -42,7 +42,7 @@ const initialDraft: TripDraft = {
 };
 
 const interestOptions = ["맛집", "산책", "전시", "야경", "쇼핑"];
-const destinationOptions = destinationPresets.map((preset) => preset.match[0]);
+const destinationOptions = destinationPresets.map((preset) => preset.label);
 
 function tripToMarkdown(trip: Trip) {
   const lines = [
@@ -131,6 +131,7 @@ export function TripPlanner() {
       .map(([place]) => place);
   }, [trip]);
   const preset = useMemo(() => getDestinationPreset(draft.destination), [draft.destination]);
+  const hasPreset = preset.mustVisits.length > 0;
   const mustVisitOptions = useMemo(() => preset.mustVisits.slice(0, 5), [preset]);
   const foodOptions = useMemo(() => preset.foodAreas.slice(0, 5), [preset]);
 
@@ -333,18 +334,22 @@ export function TripPlanner() {
               </div>
               <div className="field full">
                 <label>꼭 가고 싶은 곳</label>
-                <div className="chip-row">
-                  {mustVisitOptions.map((item) => (
-                    <button
-                      className={`chip ${selectedMustVisits.includes(item) ? "selected" : ""}`}
-                      type="button"
-                      key={item}
-                      onClick={() => toggleSelection(item, selectedMustVisits, setSelectedMustVisits)}
-                    >
-                      {item}
-                    </button>
-                  ))}
-                </div>
+                {hasPreset ? (
+                  <div className="chip-row">
+                    {mustVisitOptions.map((item) => (
+                      <button
+                        className={`chip ${selectedMustVisits.includes(item) ? "selected" : ""}`}
+                        type="button"
+                        key={item}
+                        onClick={() => toggleSelection(item, selectedMustVisits, setSelectedMustVisits)}
+                      >
+                        {item}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="helper-text">아직 이 목적지의 추천 데이터가 없습니다. 아래에 실제 장소명을 직접 추가해주세요.</p>
+                )}
                 <div className="inline-add">
                   <input id="customMustVisit" value={customMustVisit} onChange={(event) => setCustomMustVisit(event.target.value)} placeholder="예: 예약한 호텔, 친구가 추천한 카페" />
                   <button className="btn" type="button" onClick={() => addCustom(customMustVisit, selectedMustVisits, setSelectedMustVisits, setCustomMustVisit)}>
@@ -354,18 +359,22 @@ export function TripPlanner() {
               </div>
               <div className="field full">
                 <label>음식 취향 / 맛집 구역</label>
-                <div className="chip-row">
-                  {foodOptions.map((item) => (
-                    <button
-                      className={`chip ${selectedFoodAreas.includes(item) ? "selected" : ""}`}
-                      type="button"
-                      key={item}
-                      onClick={() => toggleSelection(item, selectedFoodAreas, setSelectedFoodAreas)}
-                    >
-                      {item}
-                    </button>
-                  ))}
-                </div>
+                {hasPreset ? (
+                  <div className="chip-row">
+                    {foodOptions.map((item) => (
+                      <button
+                        className={`chip ${selectedFoodAreas.includes(item) ? "selected" : ""}`}
+                        type="button"
+                        key={item}
+                        onClick={() => toggleSelection(item, selectedFoodAreas, setSelectedFoodAreas)}
+                      >
+                        {item}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="helper-text">맛집 구역도 실제 지역명이나 음식 취향으로 추가하면 일정 품질이 좋아집니다.</p>
+                )}
                 <div className="inline-add">
                   <input id="customFood" value={customFood} onChange={(event) => setCustomFood(event.target.value)} placeholder="예: 라멘, 해산물, 채식, 디저트, 아이 동반 식당" />
                   <button className="btn" type="button" onClick={() => addCustom(customFood, selectedFoodAreas, setSelectedFoodAreas, setCustomFood)}>
@@ -386,13 +395,17 @@ export function TripPlanner() {
               ) : null}
               <div className="field full">
                 <label>비 오는 날 대안</label>
-                <div className="chip-row">
-                  {preset.rainyOptions.map((item) => (
-                    <button className="chip" type="button" key={item} onClick={() => toggleSelection(`우천 대안: ${item}`, selectedInterests, setSelectedInterests)}>
-                      {item}
-                    </button>
-                  ))}
-                </div>
+                {hasPreset ? (
+                  <div className="chip-row">
+                    {preset.rainyOptions.map((item) => (
+                      <button className="chip" type="button" key={item} onClick={() => toggleSelection(`우천 대안: ${item}`, selectedInterests, setSelectedInterests)}>
+                        {item}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="helper-text">직접 입력 목적지는 비 오는 날 대안을 일정 생성 후 검색 링크로 확인합니다.</p>
+                )}
               </div>
             </div>
             <button className="btn primary" type="submit" disabled={loading || !draft.destination || !draft.startDate || !draft.endDate}>
