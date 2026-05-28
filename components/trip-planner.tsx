@@ -94,6 +94,43 @@ function tripToIcs(trip: Trip) {
   return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Travel Agent MVP//KO", ...events, "END:VCALENDAR"].join("\r\n");
 }
 
+function placeQuery(destination: string, placeName: string) {
+  return `${destination} ${placeName}`;
+}
+
+function estimateMoveTime(move: string) {
+  const range = move.match(/(\d+)\s*-\s*(\d+)\s*분/);
+  if (range) return `${range[1]}-${range[2]}분`;
+
+  const single = move.match(/(\d+)\s*분/);
+  if (single) return `약 ${single[1]}분`;
+
+  return "시간 확인 필요";
+}
+
+function buildDirectionsUrl(destination: string, items: { placeName: string }[]) {
+  const places = items.slice(0, 8).map((item) => placeQuery(destination, item.placeName));
+  const origin = places[0] ?? destination;
+  const final = places[places.length - 1] ?? destination;
+  const waypoints = places.slice(1, -1).join("|");
+  const params = new URLSearchParams({
+    api: "1",
+    origin,
+    destination: final,
+    travelmode: "transit"
+  });
+
+  if (waypoints) params.set("waypoints", waypoints);
+  return `https://www.google.com/maps/dir/?${params.toString()}`;
+}
+
+function buildEmbedMapUrl(destination: string, items: { placeName: string }[]) {
+  const places = items.slice(0, 8).map((item) => placeQuery(destination, item.placeName));
+  const origin = encodeURIComponent(places[0] ?? destination);
+  const routeStops = places.slice(1).map((place) => encodeURIComponent(place)).join("+to:");
+  return `https://www.google.com/maps?output=embed&saddr=${origin}&daddr=${routeStops}`;
+}
+
 export function TripPlanner() {
   const [draft, setDraft] = useState<TripDraft>(initialDraft);
   const [trip, setTrip] = useState<Trip | null>(null);
@@ -528,6 +565,40 @@ export function TripPlanner() {
                           </div>
                         </div>
                       ))}
+                    </div>
+                    <div className="route-panel">
+                      <div className="route-heading">
+                        <div>
+                          <h4>오늘의 이동 경로</h4>
+                          <p className="kicker">번호 순서대로 이동하며, 시간은 일정의 이동 메모를 기준으로 표시합니다.</p>
+                        </div>
+                        <a className="btn" href={buildDirectionsUrl(trip.destination, day.items)} target="_blank" rel="noreferrer">
+                          <MapPin size={17} /> 길찾기
+                        </a>
+                      </div>
+                      <div className="map-frame">
+                        <iframe
+                          title={`${formatKoreanDate(day.date)} 이동 지도`}
+                          src={buildEmbedMapUrl(trip.destination, day.items)}
+                          loading="lazy"
+                          referrerPolicy="no-referrer-when-downgrade"
+                        />
+                      </div>
+                      <div className="route-steps">
+                        {day.items.map((item, index) => (
+                          <div className="route-step" key={`${day.id}-route-${item.id}`}>
+                            <span className="route-number">{index + 1}</span>
+                            <span className="route-place">{item.placeName}</span>
+                            {index < day.items.length - 1 ? (
+                              <span className="route-leg">
+                                → {estimateMoveTime(day.items[index + 1].move)}
+                              </span>
+                            ) : (
+                              <span className="route-leg">도착</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </article>
                 ))}

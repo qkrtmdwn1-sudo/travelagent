@@ -396,6 +396,82 @@ textarea:focus {
   text-decoration: none;
 }
 
+.route-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+
+.route-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.route-heading h4 {
+  margin: 0 0 5px;
+  font-size: 17px;
+}
+
+.map-frame {
+  width: 100%;
+  aspect-ratio: 16 / 7;
+  min-height: 240px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft);
+}
+
+.map-frame iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.route-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.route-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  padding: 7px 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.route-number {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--brand);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.route-place {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.route-leg {
+  color: var(--brand-dark);
+  font-weight: 700;
+}
+
 .side-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -492,12 +568,18 @@ textarea:focus {
 
   .trip-header,
   .day-heading,
-  .item-top {
+  .item-top,
+  .route-heading {
     display: grid;
   }
 
   .timeline-item {
     grid-template-columns: 1fr;
+  }
+
+  .map-frame {
+    aspect-ratio: 4 / 3;
+    min-height: 220px;
   }
 }
 
