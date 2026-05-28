@@ -19,9 +19,10 @@ import {
   Users
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { formatKoreanDate, makeId, nowIso } from "@/lib/date";
-import { downloadText, getChat, listTrips, makeShareUrl, saveChat, saveTrip } from "@/lib/storage";
-import type { ChatMessage, Trip, TripDraft } from "@/lib/types";
+import { formatKoreanDate } from "@/lib/date";
+import { getDestinationPreset } from "@/lib/destination-presets";
+import { downloadText, listTrips, makeShareUrl, saveTrip } from "@/lib/storage";
+import type { Trip, TripDraft } from "@/lib/types";
 
 const today = new Date();
 const defaultStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 30).toISOString().slice(0, 10);
@@ -39,6 +40,8 @@ const initialDraft: TripDraft = {
   avoid: "너무 긴 도보 이동",
   mustVisits: "시부야 스카이, 아사쿠사, 긴자"
 };
+
+const interestOptions = ["맛집", "산책", "전시", "야경", "쇼핑"];
 
 function tripToMarkdown(trip: Trip) {
   const lines = [
@@ -93,15 +96,18 @@ function tripToIcs(trip: Trip) {
 export function TripPlanner() {
   const [draft, setDraft] = useState<TripDraft>(initialDraft);
   const [trip, setTrip] = useState<Trip | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [revision, setRevision] = useState("");
   const [loading, setLoading] = useState(false);
   const [shareMessage, setShareMessage] = useState("");
+  const [statusMessage, setStatusMessage] = useState("목적지와 날짜를 입력하면 새 일정이 생성됩니다.");
+  const [selectedInterests, setSelectedInterests] = useState<string[]>(["맛집", "산책", "전시", "야경"]);
+  const [customInterest, setCustomInterest] = useState("");
+  const [selectedMustVisits, setSelectedMustVisits] = useState<string[]>(["시부야 스카이", "아사쿠사", "긴자"]);
+  const [customMustVisit, setCustomMustVisit] = useState("");
 
   useEffect(() => {
     const trips = listTrips();
     setTrip(trips[0] ?? null);
-    setMessages(getChat());
   }, []);
 
   const latestCheckedAt = useMemo(() => {
@@ -120,6 +126,35 @@ export function TripPlanner() {
       .filter(([, total]) => total > 1)
       .map(([place]) => place);
   }, [trip]);
+  const preset = useMemo(() => getDestinationPreset(draft.destination), [draft.destination]);
+  const mustVisitOptions = useMemo(() => preset.mustVisits.slice(0, 5), [preset]);
+
+  useEffect(() => {
+    setSelectedMustVisits((current) => {
+      const currentFromPreset = current.filter((item) => mustVisitOptions.includes(item));
+      const customItems = current.filter((item) => !preset.mustVisits.includes(item));
+      return currentFromPreset.length ? [...currentFromPreset, ...customItems] : [...mustVisitOptions.slice(0, 3), ...customItems];
+    });
+  }, [mustVisitOptions, preset.mustVisits]);
+
+  function toggleSelection(value: string, selected: string[], setSelected: (value: string[]) => void) {
+    setSelected(selected.includes(value) ? selected.filter((item) => item !== value) : [...selected, value]);
+  }
+
+  function addCustom(value: string, selected: string[], setSelected: (value: string[]) => void, clear: (value: string) => void) {
+    const clean = value.trim();
+    if (!clean) return;
+    if (!selected.includes(clean)) setSelected([...selected, clean]);
+    clear("");
+  }
+
+  function buildDraftForSubmit() {
+    return {
+      ...draft,
+      interests: selectedInterests.join(", "),
+      mustVisits: selectedMustVisits.join(", ")
+    };
+  }
 
   async function callAgent(body: unknown) {
     const response = await fetch("/api/agent", {
@@ -140,27 +175,12 @@ export function TripPlanner() {
     setLoading(true);
     setShareMessage("");
 
-    const userMessage: ChatMessage = {
-      id: makeId("msg"),
-      role: "user",
-      content: `${draft.destination} ${draft.startDate}부터 ${draft.endDate}까지 ${draft.travelers}명 여행 일정을 만들어줘.`,
-      createdAt: nowIso()
-    };
-
     try {
-      const result = await callAgent({ mode: "generate", draft });
+      const submitDraft = buildDraftForSubmit();
+      const result = await callAgent({ mode: "generate", draft: submitDraft });
       setTrip(result.trip);
       saveTrip(result.trip);
-
-      const assistantMessage: ChatMessage = {
-        id: makeId("msg"),
-        role: "assistant",
-        content: `${result.trip.title} 초안을 만들었어요. 일정표, 예약 체크, 지도 링크까지 확인해보세요.`,
-        createdAt: nowIso()
-      };
-      const nextMessages = [userMessage, assistantMessage, ...messages].slice(0, 12);
-      setMessages(nextMessages);
-      saveChat(nextMessages);
+      setStatusMessage(`${result.trip.title} 초안을 만들었습니다. 중복 장소와 예약 체크 항목을 확인하세요.`);
     } finally {
       setLoading(false);
     }
@@ -170,28 +190,12 @@ export function TripPlanner() {
     if (!trip || !revision.trim()) return;
     setLoading(true);
 
-    const userMessage: ChatMessage = {
-      id: makeId("msg"),
-      role: "user",
-      content: revision,
-      createdAt: nowIso()
-    };
-
     try {
       const result = await callAgent({ mode: "revise", trip, request: revision });
       setTrip(result.trip);
       saveTrip(result.trip);
+      setStatusMessage(`"${revision}" 요청을 반영했습니다.`);
       setRevision("");
-
-      const assistantMessage: ChatMessage = {
-        id: makeId("msg"),
-        role: "assistant",
-        content: "요청을 반영해 일정을 조정했어요. 최신 정보 확인이 필요한 항목은 알림에 남겨뒀습니다.",
-        createdAt: nowIso()
-      };
-      const nextMessages = [userMessage, assistantMessage, ...messages].slice(0, 12);
-      setMessages(nextMessages);
-      saveChat(nextMessages);
     } finally {
       setLoading(false);
     }
@@ -279,20 +283,80 @@ export function TripPlanner() {
                 <input id="budget" value={draft.budget} onChange={(event) => setDraft({ ...draft, budget: event.target.value })} />
               </div>
               <div className="field full">
-                <label htmlFor="interests">관심사</label>
-                <input id="interests" value={draft.interests} onChange={(event) => setDraft({ ...draft, interests: event.target.value })} />
+                <label>관심사</label>
+                <div className="chip-row">
+                  {interestOptions.map((item) => (
+                    <button
+                      className={`chip ${selectedInterests.includes(item) ? "selected" : ""}`}
+                      type="button"
+                      key={item}
+                      onClick={() => toggleSelection(item, selectedInterests, setSelectedInterests)}
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="field full">
-                <label htmlFor="mustVisits">꼭 가고 싶은 곳</label>
-                <input id="mustVisits" value={draft.mustVisits} onChange={(event) => setDraft({ ...draft, mustVisits: event.target.value })} />
+                <label htmlFor="customInterest">관심사 직접 추가</label>
+                <div className="inline-add">
+                  <input id="customInterest" value={customInterest} onChange={(event) => setCustomInterest(event.target.value)} placeholder="예: 온천, 서점, 아이와 함께, 사진 명소" />
+                  <button className="btn" type="button" onClick={() => addCustom(customInterest, selectedInterests, setSelectedInterests, setCustomInterest)}>
+                    추가
+                  </button>
+                </div>
+              </div>
+              <div className="field full">
+                <label>꼭 가고 싶은 곳</label>
+                <div className="chip-row">
+                  {mustVisitOptions.map((item) => (
+                    <button
+                      className={`chip ${selectedMustVisits.includes(item) ? "selected" : ""}`}
+                      type="button"
+                      key={item}
+                      onClick={() => toggleSelection(item, selectedMustVisits, setSelectedMustVisits)}
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="field full">
+                <label htmlFor="customMustVisit">장소 직접 추가</label>
+                <div className="inline-add">
+                  <input id="customMustVisit" value={customMustVisit} onChange={(event) => setCustomMustVisit(event.target.value)} placeholder="예: 예약한 호텔, 친구가 추천한 카페" />
+                  <button className="btn" type="button" onClick={() => addCustom(customMustVisit, selectedMustVisits, setSelectedMustVisits, setCustomMustVisit)}>
+                    추가
+                  </button>
+                </div>
               </div>
               <div className="field full">
                 <label htmlFor="food">음식 취향</label>
                 <input id="food" value={draft.food} onChange={(event) => setDraft({ ...draft, food: event.target.value })} />
               </div>
               <div className="field full">
+                <label>맛집 구역</label>
+                <div className="chip-row">
+                  {preset.foodAreas.map((item) => (
+                    <button className="chip" type="button" key={item} onClick={() => setDraft({ ...draft, food: draft.food.includes(item) ? draft.food : `${draft.food}, ${item}` })}>
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="field full">
                 <label htmlFor="avoid">피하고 싶은 것</label>
                 <textarea id="avoid" value={draft.avoid} onChange={(event) => setDraft({ ...draft, avoid: event.target.value })} />
+              </div>
+              <div className="field full">
+                <label>비 오는 날 대안</label>
+                <div className="chip-row">
+                  {preset.rainyOptions.map((item) => (
+                    <button className="chip" type="button" key={item} onClick={() => toggleSelection(`우천 대안: ${item}`, selectedInterests, setSelectedInterests)}>
+                      {item}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
             <button className="btn primary" type="submit" disabled={loading || !draft.destination || !draft.startDate || !draft.endDate}>
@@ -300,12 +364,9 @@ export function TripPlanner() {
             </button>
           </form>
 
-          <div className="chat-log">
-            {messages.map((message) => (
-              <div className={`message ${message.role}`} key={message.id}>
-                {message.content}
-              </div>
-            ))}
+          <div className="status-note">
+            <Sparkles size={18} />
+            <span>{statusMessage}</span>
           </div>
         </section>
 

@@ -1,9 +1,8 @@
 "use client";
 
-import type { ChatMessage, Trip } from "@/lib/types";
+import type { Trip } from "@/lib/types";
 
 const TRIPS_KEY = "travel-agent.trips";
-const CHAT_KEY = "travel-agent.chat";
 
 function readJson<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -33,14 +32,6 @@ export function saveTrip(trip: Trip) {
 
 export function getTrip(id: string) {
   return listTrips().find((trip) => trip.id === id) ?? null;
-}
-
-export function saveChat(messages: ChatMessage[]) {
-  writeJson(CHAT_KEY, messages);
-}
-
-export function getChat() {
-  return readJson<ChatMessage[]>(CHAT_KEY, []);
 }
 
 export function makeShareUrl(trip: Trip) {

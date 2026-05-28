@@ -1,4 +1,5 @@
 import { getDateRange, makeId, nowIso } from "@/lib/date";
+import { getDestinationPreset } from "@/lib/destination-presets";
 import type { Alert, AgentQuestion, ItineraryDay, ItineraryItem, SourceLink, Trip, TripDraft } from "@/lib/types";
 
 function mapLink(destination: string, place: string): SourceLink {
@@ -100,13 +101,15 @@ export function buildFallbackTrip(draft: TripDraft): Trip {
   const interests = draft.interests.split(",").map((item) => item.trim()).filter(Boolean);
   const checkedAt = nowIso();
   const usedPlaces = new Set<string>();
+  const preset = getDestinationPreset(draft.destination);
+  const recommendedMustVisits = [...mustVisits, ...preset.mustVisits];
 
   const days: ItineraryDay[] = dates.map((date, index) => ({
     id: makeId("day"),
     date,
-    area: `${draft.destination} ${dayThemes[index % dayThemes.length].area}`,
+    area: `${draft.destination} ${preset.dayAreas[index % preset.dayAreas.length]}`,
     weatherSummary: "여행 날짜가 가까워지면 최신 예보를 다시 확인하세요. 장기 예보는 변동 가능성이 큽니다.",
-    items: dayTemplate(draft.destination, index, draft.pace, mustVisits, usedPlaces).map((item) => ({
+    items: dayTemplate(draft.destination, index, draft.pace, recommendedMustVisits, usedPlaces).map((item) => ({
       ...item,
       sourceLinks: [...item.sourceLinks, weatherLink(draft.destination)]
     }))

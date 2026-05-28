@@ -225,6 +225,40 @@ textarea:focus {
   font-weight: 700;
 }
 
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--brand-dark);
+  padding: 7px 10px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.chip:hover {
+  border-color: var(--brand);
+  background: var(--soft);
+}
+
+.chip.selected {
+  border-color: var(--brand);
+  background: var(--brand);
+  color: #fff;
+}
+
+.inline-add {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
 .day-list {
   display: grid;
   gap: 14px;
@@ -327,27 +361,17 @@ textarea:focus {
   padding: 12px;
 }
 
-.chat-log {
-  display: grid;
+.status-note {
+  display: flex;
+  align-items: flex-start;
   gap: 10px;
-  max-height: 260px;
-  overflow: auto;
-  margin: 16px 0;
-}
-
-.message {
+  margin-top: 16px;
+  border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 10px 12px;
-  line-height: 1.45;
-}
-
-.message.user {
-  background: var(--brand);
-  color: #fff;
-}
-
-.message.assistant {
   background: var(--soft);
+  color: var(--brand-dark);
+  padding: 12px;
+  line-height: 1.45;
 }
 
 .empty-state {
