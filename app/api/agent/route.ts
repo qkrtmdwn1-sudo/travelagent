@@ -1,4 +1,3 @@
-import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { buildFallbackTrip, reviseTrip } from "@/lib/sample-agent";
 import type { Trip, TripDraft } from "@/lib/types";
@@ -30,17 +29,26 @@ const SYSTEM_PROMPT = `
 async function generateWithOpenAI(draft: TripDraft) {
   if (!process.env.OPENAI_API_KEY) return null;
 
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   const fallback = buildFallbackTrip(draft);
 
-  const response = await client.responses.create({
-    model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
-    instructions: SYSTEM_PROMPT,
-    input: `다음 초안을 기반으로 여행 일정을 보강해줘. 기존 JSON 스키마와 동일하게 반환해.\n${JSON.stringify(fallback)}`,
-    tools: [{ type: "web_search_preview" }]
-  } as never);
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+      instructions: SYSTEM_PROMPT,
+      input: `다음 초안을 기반으로 여행 일정을 보강해줘. 기존 JSON 스키마와 동일하게 반환해.\n${JSON.stringify(fallback)}`,
+      tools: [{ type: "web_search_preview" }]
+    })
+  });
 
-  const text = response.output_text;
+  if (!response.ok) return fallback;
+
+  const data = (await response.json()) as { output_text?: string };
+  const text = data.output_text;
   if (!text) return fallback;
 
   try {
