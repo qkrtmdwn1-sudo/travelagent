@@ -260,24 +260,6 @@ textarea:focus {
   margin-top: 8px;
 }
 
-.selected-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-  margin-top: 9px;
-}
-
-.selected-token {
-  border: 0;
-  border-radius: 999px;
-  background: var(--brand-dark);
-  color: #fff;
-  padding: 6px 9px;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 700;
-}
-
 .btn.subtle {
   background: var(--soft);
   color: var(--brand-dark);
