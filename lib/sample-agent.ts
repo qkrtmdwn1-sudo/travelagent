@@ -53,26 +53,44 @@ function createItem(
   };
 }
 
-function dayTemplate(destination: string, dayIndex: number, pace: TripDraft["pace"], mustVisits: string[]): ItineraryItem[] {
+const dayThemes = [
+  { area: "도착/중심지", fallback: "대표 중심지", morning: "도착 후 중심지 산책", afternoon: "랜드마크와 주변 골목", evening: "첫날 저녁과 야경" },
+  { area: "역사/로컬", fallback: "역사 지구", morning: "역사 지구", afternoon: "현지 시장과 골목", evening: "로컬 맛집 거리" },
+  { area: "전시/쇼핑", fallback: "전시관 또는 미술관", morning: "전시관 또는 미술관", afternoon: "쇼핑 거리", evening: "예약 식당 후보" },
+  { area: "자연/전망", fallback: "전망 좋은 산책로", morning: "공원과 전망 포인트", afternoon: "카페와 휴식 구역", evening: "강변 또는 야경 산책" },
+  { area: "근교/특색 지역", fallback: "근교 특색 지역", morning: "근교 특색 지역", afternoon: "지역 명물 거리", evening: "숙소 근처 가벼운 저녁" }
+];
+
+function uniquePick(candidates: string[], used: Set<string>, fallback: string) {
+  const picked = candidates.find((candidate) => candidate && !used.has(candidate));
+  const value = picked || `${fallback} ${used.size + 1}`;
+  used.add(value);
+  return value;
+}
+
+function dayTemplate(destination: string, dayIndex: number, pace: TripDraft["pace"], mustVisits: string[], usedPlaces: Set<string>): ItineraryItem[] {
   const relaxed = pace === "여유롭게";
-  const firstMustVisit = mustVisits[dayIndex % Math.max(mustVisits.length, 1)];
-  const featured = firstMustVisit || (dayIndex === 0 ? "대표 중심지" : dayIndex === 1 ? "현지 시장" : "전망 좋은 산책로");
+  const theme = dayThemes[dayIndex % dayThemes.length];
+  const featured = uniquePick([mustVisits[dayIndex], theme.morning, theme.fallback], usedPlaces, theme.fallback);
+  const lunch = uniquePick([`${theme.area} 점심 맛집`, "근처 현지 식당"], usedPlaces, "점심 맛집");
+  const afternoon = uniquePick([theme.afternoon], usedPlaces, "오후 일정");
+  const evening = uniquePick([theme.evening], usedPlaces, "저녁 일정");
 
   if (relaxed) {
     return [
       createItem(destination, "10:00", featured, "하루를 급하게 시작하지 않고 핵심 장소 하나를 깊게 둘러봅니다.", "숙소에서 대중교통 또는 택시로 20-35분", "1인 15,000-35,000원"),
-      createItem(destination, "12:30", "근처 현지 식당", "이동을 줄이기 위해 오전 동선 근처에서 점심을 잡습니다.", "도보 10분 이내", "1인 20,000-45,000원", false, "지역 대표 메뉴"),
-      createItem(destination, "15:00", "카페와 산책 구역", "휴식 시간을 넣어 체력 부담을 낮추고 날씨가 나쁘면 실내 카페로 대체합니다.", "도보 또는 짧은 택시 이동", "1인 10,000-25,000원"),
-      createItem(destination, "18:00", "저녁 식사 후보", "예약 가능한 식당을 우선 확인하고 숙소 복귀가 쉬운 지역으로 잡습니다.", "대중교통 15-25분", "1인 30,000-70,000원", true, "예약 권장")
+      createItem(destination, "12:30", lunch, "이동을 줄이기 위해 오전 동선 근처에서 점심을 잡습니다.", "도보 10분 이내", "1인 20,000-45,000원", false, "지역 대표 메뉴"),
+      createItem(destination, "15:00", afternoon, "휴식 시간을 넣어 체력 부담을 낮추고 날씨가 나쁘면 실내 카페나 전시로 대체합니다.", "도보 또는 짧은 택시 이동", "1인 10,000-25,000원"),
+      createItem(destination, "18:00", evening, "예약 가능한 식당을 우선 확인하고 숙소 복귀가 쉬운 지역으로 잡습니다.", "대중교통 15-25분", "1인 30,000-70,000원", true, "예약 권장")
     ];
   }
 
   return [
     createItem(destination, "09:00", featured, "대표 명소를 오전에 배치해 혼잡을 줄이고 사진 찍기 좋은 시간을 노립니다.", "대중교통 20-40분", "1인 15,000-40,000원"),
-    createItem(destination, "11:30", "인근 골목 탐방", "관심사에 맞춰 쇼핑, 전시, 소품샵, 서점 중 하나를 선택해 둘러봅니다.", "도보 10-20분", "선택 지출"),
-    createItem(destination, "13:00", "점심 맛집 후보", "웨이팅이 길면 근처 2순위 식당으로 바꾸기 쉽게 잡습니다.", "도보 10분 이내", "1인 20,000-50,000원", false, "현지 인기 메뉴"),
-    createItem(destination, "15:00", dayIndex % 2 === 0 ? "박물관 또는 실내 전시" : "전망대 또는 공원", "날씨에 따라 실내/야외를 바꿀 수 있는 오후 일정입니다.", "대중교통 15-30분", "1인 10,000-35,000원"),
-    createItem(destination, "19:00", "저녁과 야경 동선", "식사 후 야경이나 산책을 붙여 하루 마무리 만족도를 높입니다.", "대중교통 20분 내외", "1인 30,000-80,000원", true, "예약 권장")
+    createItem(destination, "11:30", uniquePick([`${theme.area} 골목 탐방`], usedPlaces, "골목 탐방"), "관심사에 맞춰 쇼핑, 전시, 소품샵, 서점 중 하나를 선택해 둘러봅니다.", "도보 10-20분", "선택 지출"),
+    createItem(destination, "13:00", lunch, "웨이팅이 길면 근처 2순위 식당으로 바꾸기 쉽게 잡습니다.", "도보 10분 이내", "1인 20,000-50,000원", false, "현지 인기 메뉴"),
+    createItem(destination, "15:00", afternoon, "날씨에 따라 실내/야외를 바꿀 수 있는 오후 일정입니다.", "대중교통 15-30분", "1인 10,000-35,000원"),
+    createItem(destination, "19:00", evening, "식사 후 야경이나 산책을 붙여 하루 마무리 만족도를 높입니다.", "대중교통 20분 내외", "1인 30,000-80,000원", true, "예약 권장")
   ];
 }
 
@@ -81,13 +99,14 @@ export function buildFallbackTrip(draft: TripDraft): Trip {
   const mustVisits = draft.mustVisits.split(",").map((item) => item.trim()).filter(Boolean);
   const interests = draft.interests.split(",").map((item) => item.trim()).filter(Boolean);
   const checkedAt = nowIso();
+  const usedPlaces = new Set<string>();
 
   const days: ItineraryDay[] = dates.map((date, index) => ({
     id: makeId("day"),
     date,
-    area: index === 0 ? `${draft.destination} 도착/중심지` : `${draft.destination} ${index + 1}일차 추천 구역`,
+    area: `${draft.destination} ${dayThemes[index % dayThemes.length].area}`,
     weatherSummary: "여행 날짜가 가까워지면 최신 예보를 다시 확인하세요. 장기 예보는 변동 가능성이 큽니다.",
-    items: dayTemplate(draft.destination, index, draft.pace, mustVisits).map((item) => ({
+    items: dayTemplate(draft.destination, index, draft.pace, mustVisits, usedPlaces).map((item) => ({
       ...item,
       sourceLinks: [...item.sourceLinks, weatherLink(draft.destination)]
     }))
@@ -156,6 +175,8 @@ export function reviseTrip(trip: Trip, request: string): Trip {
   const relaxed = request.includes("덜 걷") || request.includes("여유") || request.includes("부모님");
   const foodFocused = request.includes("맛집") || request.includes("음식") || request.includes("먹");
   const rainy = request.includes("비") || request.includes("우천") || request.includes("날씨");
+  const removeDuplicates = request.includes("중복") || request.includes("같은 장소");
+  const usedPlaces = new Set<string>();
 
   const days = trip.days.map((day) => ({
     ...day,
@@ -163,9 +184,18 @@ export function reviseTrip(trip: Trip, request: string): Trip {
       ? "비가 오면 야외 일정을 줄이고 박물관, 쇼핑몰, 카페처럼 실내 대안을 우선하세요."
       : day.weatherSummary,
     items: day.items.map((item, index) => {
+      const theme = dayThemes[index % dayThemes.length];
+      const uniquePlaceName =
+        removeDuplicates && usedPlaces.has(item.placeName)
+          ? uniquePick([`${day.area} 대체 후보`, theme.afternoon, theme.evening], usedPlaces, "대체 일정")
+          : item.placeName;
+
+      usedPlaces.add(uniquePlaceName);
+
       if (relaxed && index > 2) {
         return {
           ...item,
+          placeName: uniquePlaceName,
           time: index === 3 ? "17:30" : item.time,
           move: "택시 또는 환승 적은 대중교통 우선",
           description: `${item.description} 이동 부담을 줄이도록 동선을 짧게 조정했습니다.`
@@ -175,12 +205,13 @@ export function reviseTrip(trip: Trip, request: string): Trip {
       if (foodFocused && (item.meal || item.placeName.includes("식당"))) {
         return {
           ...item,
+          placeName: uniquePlaceName,
           reservationNeeded: true,
           description: `${item.description} 현지 인기 식당 2-3곳을 비교하고 예약 가능한 곳을 우선합니다.`
         };
       }
 
-      return item;
+      return { ...item, placeName: uniquePlaceName };
     })
   }));
 

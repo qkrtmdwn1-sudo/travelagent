@@ -110,6 +110,17 @@ export function TripPlanner() {
     return links[0]?.checkedAt ? new Date(links[0].checkedAt).toLocaleString("ko-KR") : "";
   }, [trip]);
 
+  const duplicatePlaces = useMemo(() => {
+    if (!trip) return [];
+    const count = new Map<string, number>();
+    trip.days.forEach((day) => {
+      day.items.forEach((item) => count.set(item.placeName, (count.get(item.placeName) ?? 0) + 1));
+    });
+    return Array.from(count.entries())
+      .filter(([, total]) => total > 1)
+      .map(([place]) => place);
+  }, [trip]);
+
   async function callAgent(body: unknown) {
     const response = await fetch("/api/agent", {
       method: "POST",
@@ -329,6 +340,14 @@ export function TripPlanner() {
                 </div>
               </div>
               {shareMessage ? <div className="notice no-print">{shareMessage}</div> : null}
+              {duplicatePlaces.length ? (
+                <div className="notice no-print">
+                  <strong>중복 장소 확인 필요</strong>
+                  <p>
+                    {duplicatePlaces.join(", ")} 항목이 여러 번 들어갔습니다. 수정 요청에 “중복 장소 빼고 다시 짜줘”라고 입력하면 정리할 수 있어요.
+                  </p>
+                </div>
+              ) : null}
 
               <div className="panel utility-panel no-print">
                 <h3>대화로 수정</h3>
