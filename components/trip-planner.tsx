@@ -104,6 +104,8 @@ export function TripPlanner() {
   const [customInterest, setCustomInterest] = useState("");
   const [selectedMustVisits, setSelectedMustVisits] = useState<string[]>(["시부야 스카이", "아사쿠사", "긴자"]);
   const [customMustVisit, setCustomMustVisit] = useState("");
+  const [selectedFoodAreas, setSelectedFoodAreas] = useState<string[]>([]);
+  const [customFood, setCustomFood] = useState("");
 
   useEffect(() => {
     const trips = listTrips();
@@ -128,6 +130,7 @@ export function TripPlanner() {
   }, [trip]);
   const preset = useMemo(() => getDestinationPreset(draft.destination), [draft.destination]);
   const mustVisitOptions = useMemo(() => preset.mustVisits.slice(0, 5), [preset]);
+  const foodOptions = useMemo(() => preset.foodAreas.slice(0, 5), [preset]);
 
   useEffect(() => {
     setSelectedMustVisits((current) => {
@@ -136,6 +139,14 @@ export function TripPlanner() {
       return currentFromPreset.length ? [...currentFromPreset, ...customItems] : [...mustVisitOptions.slice(0, 3), ...customItems];
     });
   }, [mustVisitOptions, preset.mustVisits]);
+
+  useEffect(() => {
+    setSelectedFoodAreas((current) => {
+      const currentFromPreset = current.filter((item) => foodOptions.includes(item));
+      const customItems = current.filter((item) => !preset.foodAreas.includes(item));
+      return currentFromPreset.length ? [...currentFromPreset, ...customItems] : [foodOptions[0], ...customItems].filter(Boolean);
+    });
+  }, [foodOptions, preset.foodAreas]);
 
   function toggleSelection(value: string, selected: string[], setSelected: (value: string[]) => void) {
     setSelected(selected.includes(value) ? selected.filter((item) => item !== value) : [...selected, value]);
@@ -152,7 +163,8 @@ export function TripPlanner() {
     return {
       ...draft,
       interests: selectedInterests.join(", "),
-      mustVisits: selectedMustVisits.join(", ")
+      mustVisits: selectedMustVisits.join(", "),
+      food: selectedFoodAreas.join(", ")
     };
   }
 
@@ -331,17 +343,27 @@ export function TripPlanner() {
                 </div>
               </div>
               <div className="field full">
-                <label htmlFor="food">음식 취향</label>
-                <input id="food" value={draft.food} onChange={(event) => setDraft({ ...draft, food: event.target.value })} />
-              </div>
-              <div className="field full">
-                <label>맛집 구역</label>
+                <label>음식 취향 / 맛집 구역</label>
                 <div className="chip-row">
-                  {preset.foodAreas.map((item) => (
-                    <button className="chip" type="button" key={item} onClick={() => setDraft({ ...draft, food: draft.food.includes(item) ? draft.food : `${draft.food}, ${item}` })}>
+                  {foodOptions.map((item) => (
+                    <button
+                      className={`chip ${selectedFoodAreas.includes(item) ? "selected" : ""}`}
+                      type="button"
+                      key={item}
+                      onClick={() => toggleSelection(item, selectedFoodAreas, setSelectedFoodAreas)}
+                    >
                       {item}
                     </button>
                   ))}
+                </div>
+              </div>
+              <div className="field full">
+                <label htmlFor="customFood">음식 취향 직접 추가</label>
+                <div className="inline-add">
+                  <input id="customFood" value={customFood} onChange={(event) => setCustomFood(event.target.value)} placeholder="예: 라멘, 해산물, 채식, 디저트, 아이 동반 식당" />
+                  <button className="btn" type="button" onClick={() => addCustom(customFood, selectedFoodAreas, setSelectedFoodAreas, setCustomFood)}>
+                    추가
+                  </button>
                 </div>
               </div>
               <div className="field full">
