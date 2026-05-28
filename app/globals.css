@@ -287,8 +287,8 @@ textarea:focus {
   background: var(--soft);
   color: var(--brand-dark);
   cursor: pointer;
-  font-size: 22px;
-  font-weight: 800;
+  font-size: 17px;
+  font-weight: 700;
 }
 
 .stepper-btn:disabled {
@@ -299,7 +299,9 @@ textarea:focus {
 .stepper-value {
   display: grid;
   place-items: center;
-  font-weight: 800;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
 }
 
 .inline-add {

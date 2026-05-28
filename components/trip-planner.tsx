@@ -42,7 +42,7 @@ const initialDraft: TripDraft = {
 
 const interestOptions = ["맛집", "산책", "전시", "야경", "쇼핑"];
 const domesticDestinations = ["서울", "부산", "제주", "경주", "강릉", "전주"];
-const overseasDestinations = ["도쿄", "오사카", "후쿠오카", "타이베이", "방콕", "파리"];
+const overseasDestinations = ["도쿄", "오사카", "후쿠오카", "타이베이", "방콕", "파리", "상하이", "베이징", "홍콩", "시안", "청두"];
 
 function tripToMarkdown(trip: Trip) {
   const lines = [
