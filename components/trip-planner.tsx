@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { formatKoreanDate } from "@/lib/date";
-import { destinationPresets, getDestinationPreset } from "@/lib/destination-presets";
+import { getDestinationPreset } from "@/lib/destination-presets";
 import { downloadText, listTrips, saveTrip } from "@/lib/storage";
 import type { Trip, TripDraft } from "@/lib/types";
 
@@ -41,7 +41,8 @@ const initialDraft: TripDraft = {
 };
 
 const interestOptions = ["맛집", "산책", "전시", "야경", "쇼핑"];
-const destinationOptions = destinationPresets.map((preset) => preset.label);
+const domesticDestinations = ["서울", "부산", "제주", "경주", "강릉", "전주"];
+const overseasDestinations = ["도쿄", "오사카", "후쿠오카", "타이베이", "방콕", "파리"];
 
 function tripToMarkdown(trip: Trip) {
   const lines = [
@@ -174,6 +175,10 @@ export function TripPlanner() {
     setDraft({ ...draft, destination });
   }
 
+  function adjustTravelers(delta: number) {
+    setDraft({ ...draft, travelers: Math.max(1, Math.min(20, draft.travelers + delta)) });
+  }
+
   async function callAgent(body: unknown) {
     const response = await fetch("/api/agent", {
       method: "POST",
@@ -265,19 +270,46 @@ export function TripPlanner() {
           <h2>여행 만들기</h2>
           <form onSubmit={handleGenerate}>
             <div className="field-grid">
+              <div className="field full">
+                <label>빠른 목적지 선택</label>
+                <div className="destination-picks">
+                  <div className="destination-row">
+                    <span>국내</span>
+                    <div className="chip-row">
+                      {domesticDestinations.map((item) => (
+                        <button className={`chip ${draft.destination === item ? "selected" : ""}`} type="button" key={item} onClick={() => selectDestination(item)}>
+                          {item}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="destination-row">
+                    <span>해외</span>
+                    <div className="chip-row">
+                      {overseasDestinations.map((item) => (
+                        <button className={`chip ${draft.destination === item ? "selected" : ""}`} type="button" key={item} onClick={() => selectDestination(item)}>
+                          {item}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
               <div className="field">
                 <label htmlFor="destination">목적지</label>
                 <input id="destination" value={draft.destination} onChange={(event) => setDraft({ ...draft, destination: event.target.value })} />
               </div>
               <div className="field">
-                <label htmlFor="travelers">인원</label>
-                <input
-                  id="travelers"
-                  min="1"
-                  type="number"
-                  value={draft.travelers}
-                  onChange={(event) => setDraft({ ...draft, travelers: Number(event.target.value) })}
-                />
+                <label>인원</label>
+                <div className="stepper" aria-label="여행 인원 선택">
+                  <button className="stepper-btn" type="button" onClick={() => adjustTravelers(-1)} disabled={draft.travelers <= 1} aria-label="인원 줄이기">
+                    -
+                  </button>
+                  <span className="stepper-value">{draft.travelers}명</span>
+                  <button className="stepper-btn" type="button" onClick={() => adjustTravelers(1)} disabled={draft.travelers >= 20} aria-label="인원 늘리기">
+                    +
+                  </button>
+                </div>
               </div>
               <div className="field">
                 <label htmlFor="startDate">시작일</label>
@@ -298,16 +330,6 @@ export function TripPlanner() {
               <div className="field">
                 <label htmlFor="budget">예산</label>
                 <input id="budget" value={draft.budget} onChange={(event) => setDraft({ ...draft, budget: event.target.value })} />
-              </div>
-              <div className="field full">
-                <label>빠른 목적지 선택</label>
-                <div className="chip-row">
-                  {destinationOptions.map((item) => (
-                    <button className={`chip ${draft.destination === item ? "selected" : ""}`} type="button" key={item} onClick={() => selectDestination(item)}>
-                      {item}
-                    </button>
-                  ))}
-                </div>
               </div>
               <div className="field full">
                 <label>관심사</label>
