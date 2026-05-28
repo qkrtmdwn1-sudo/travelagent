@@ -1,5 +1,6 @@
 import { getDateRange, makeId, nowIso } from "@/lib/date";
 import { getDestinationPreset } from "@/lib/destination-presets";
+import type { LivePlaceCandidate } from "@/lib/live-places";
 import type { Alert, AgentQuestion, ItineraryDay, ItineraryItem, SourceLink, Trip, TripDraft } from "@/lib/types";
 
 function mapLink(destination: string, place: string): SourceLink {
@@ -69,13 +70,33 @@ function uniquePick(candidates: string[], used: Set<string>, fallback: string) {
   return value;
 }
 
-function dayTemplate(destination: string, dayIndex: number, pace: TripDraft["pace"], mustVisits: string[], usedPlaces: Set<string>): ItineraryItem[] {
+function isNightPlace(place: string) {
+  return ["도톤보리", "야경", "스카이", "타워", "피크", "대당불야성", "와이탄", "광안리"].some((keyword) => place.includes(keyword));
+}
+
+function isFoodPlace(place: string) {
+  return ["시장", "맛집", "식당", "야시장", "포장마차", "먹자", "요코초", "차이나타운"].some((keyword) => place.includes(keyword));
+}
+
+function pickConcretePlace(candidates: string[], usedPlaces: Set<string>, fallback: string, mode: "day" | "night" | "food" = "day") {
+  const filtered = candidates.filter(Boolean).filter((place) => {
+    if (usedPlaces.has(place)) return false;
+    if (mode === "night") return isNightPlace(place);
+    if (mode === "food") return isFoodPlace(place);
+    return !isNightPlace(place);
+  });
+
+  return uniquePick(filtered.length ? filtered : candidates.filter(Boolean), usedPlaces, fallback);
+}
+
+function dayTemplate(destination: string, dayIndex: number, pace: TripDraft["pace"], mustVisits: string[], usedPlaces: Set<string>, areaName: string, foodAreas: string[]): ItineraryItem[] {
   const relaxed = pace === "여유롭게";
-  const theme = dayThemes[dayIndex % dayThemes.length];
-  const featured = uniquePick([mustVisits[dayIndex], mustVisits[dayIndex + 1], mustVisits[dayIndex + 2]], usedPlaces, `${destination} 추천 장소 확인 필요`);
-  const lunch = uniquePick([`${featured} 근처 식당 후보`], usedPlaces, `${destination} 식당 후보 확인 필요`);
-  const afternoon = uniquePick([mustVisits[dayIndex + 3], theme.afternoon], usedPlaces, `${destination} 오후 후보 확인 필요`);
-  const evening = uniquePick([mustVisits[dayIndex + 4], theme.evening], usedPlaces, `${destination} 저녁 후보 확인 필요`);
+  const concretePlaces = mustVisits.filter((place) => !place.includes("확인 필요"));
+  const featured = pickConcretePlace([concretePlaces[dayIndex], concretePlaces[dayIndex + 1], ...concretePlaces], usedPlaces, `${destination} 실제 장소 추가 필요`, "day");
+  const lunchArea = foodAreas[dayIndex % Math.max(foodAreas.length, 1)] || areaName || featured;
+  const lunch = uniquePick([`${lunchArea} 식당 후보`], usedPlaces, `${destination} 식당 후보 확인 필요`);
+  const afternoon = pickConcretePlace([concretePlaces[dayIndex + 2], concretePlaces[dayIndex + 3], ...concretePlaces], usedPlaces, `${areaName} 오후 후보 확인 필요`, "day");
+  const evening = pickConcretePlace([concretePlaces[dayIndex + 4], ...concretePlaces], usedPlaces, `${areaName} 저녁 후보 확인 필요`, "night");
 
   if (relaxed) {
     return [
@@ -87,15 +108,15 @@ function dayTemplate(destination: string, dayIndex: number, pace: TripDraft["pac
   }
 
   return [
-      createItem(destination, "09:00", featured, "선택한 장소를 오전에 배치해 혼잡을 줄이고 사진 찍기 좋은 시간을 노립니다.", "대중교통 20-40분", "입장료 확인 필요"),
-    createItem(destination, "11:30", uniquePick([`${theme.area} 골목 탐방`], usedPlaces, "골목 탐방"), "관심사에 맞춰 쇼핑, 전시, 소품샵, 서점 중 하나를 선택해 둘러봅니다.", "도보 10-20분", "선택 지출"),
+    createItem(destination, "09:00", featured, "선택한 장소를 오전에 배치해 혼잡을 줄이고 사진 찍기 좋은 시간을 노립니다.", "대중교통 20-40분", "입장료 확인 필요"),
+    createItem(destination, "11:30", `${areaName} 주변 산책`, "장소명이 모호한 골목 탐방 대신 해당 구역 주변의 카페, 상점, 산책 동선을 확인합니다.", "도보 10-20분", "선택 지출"),
     createItem(destination, "13:00", lunch, "웨이팅이 길면 근처 2순위 식당으로 바꾸기 쉽게 잡습니다.", "도보 10분 이내", "1인 20,000-50,000원", false, "현지 인기 메뉴"),
     createItem(destination, "15:00", afternoon, "날씨에 따라 실내/야외를 바꿀 수 있는 오후 일정입니다.", "대중교통 15-30분", "1인 10,000-35,000원"),
     createItem(destination, "19:00", evening, "식사 후 야경이나 산책을 붙여 하루 마무리 만족도를 높입니다.", "대중교통 20분 내외", "1인 30,000-80,000원", true, "예약 권장")
   ];
 }
 
-export function buildFallbackTrip(draft: TripDraft): Trip {
+export function buildFallbackTrip(draft: TripDraft, livePlaces?: LivePlaceCandidate[]): Trip {
   const dates = getDateRange(draft.startDate, draft.endDate);
   const mustVisits = draft.mustVisits.split(",").map((item) => item.trim()).filter(Boolean);
   const interests = draft.interests.split(",").map((item) => item.trim()).filter(Boolean);
@@ -103,16 +124,41 @@ export function buildFallbackTrip(draft: TripDraft): Trip {
   const usedPlaces = new Set<string>();
   const preset = getDestinationPreset(draft.destination);
   const recommendedMustVisits = [...mustVisits, ...preset.mustVisits].filter(Boolean);
+  const foodPreferences = draft.food.split(",").map((item) => item.trim()).filter(Boolean);
+  const livePlaceMap = new Map((livePlaces ?? []).map((place) => [place.name, place]));
 
   const days: ItineraryDay[] = dates.map((date, index) => ({
     id: makeId("day"),
     date,
-    area: `${draft.destination} ${preset.dayAreas[index % preset.dayAreas.length]}`,
+    area: `${draft.destination} ${preset.dayAreas[index % preset.dayAreas.length] || `${index + 1}일차`}`,
     weatherSummary: "여행 날짜가 가까워지면 최신 예보를 다시 확인하세요. 장기 예보는 변동 가능성이 큽니다.",
-    items: dayTemplate(draft.destination, index, draft.pace, recommendedMustVisits, usedPlaces).map((item) => ({
-      ...item,
-      sourceLinks: [...item.sourceLinks, weatherLink(draft.destination)]
-    }))
+    items: dayTemplate(
+      draft.destination,
+      index,
+      draft.pace,
+      recommendedMustVisits,
+      usedPlaces,
+      preset.dayAreas[index % preset.dayAreas.length] || `${draft.destination} ${index + 1}일차`,
+      [...foodPreferences, ...preset.foodAreas]
+    ).map((item) => {
+      const livePlace = livePlaceMap.get(item.placeName);
+      const liveSource = livePlace?.url
+        ? [
+            {
+              label: `Google 평점 ${livePlace.rating.toFixed(1)} (${livePlace.userRatingCount.toLocaleString("ko-KR")}개)`,
+              url: livePlace.url,
+              checkedAt,
+              kind: "map" as const
+            }
+          ]
+        : [];
+
+      return {
+        ...item,
+        estimatedCost: livePlace ? "장소 상세에서 최신 비용 확인" : item.estimatedCost,
+        sourceLinks: [...liveSource, ...item.sourceLinks, weatherLink(draft.destination)]
+      };
+    })
   }));
 
   const agentQuestions: AgentQuestion[] = [
@@ -142,8 +188,10 @@ export function buildFallbackTrip(draft: TripDraft): Trip {
     {
       id: makeId("alert"),
       type: "api",
-      title: "API 연동 후보",
-      message: "항공·숙소·지도 API는 정확도 향상이 큰 영역입니다. 필요할 때 단계적으로 붙이세요.",
+      title: livePlaces?.length ? "실시간 장소 후보 반영" : "API 연동 후보",
+      message: livePlaces?.length
+        ? "Google Places API의 평점과 후기 수를 참고해 장소 후보를 우선 배치했습니다."
+        : "Google Places API 키를 연결하면 어느 도시든 평점과 후기 수 기반 추천을 사용할 수 있습니다.",
       checked: false
     }
   ];

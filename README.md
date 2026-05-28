@@ -13,6 +13,8 @@ npm run dev
 
 OpenAI Responses API를 사용하려면 `.env.example`을 `.env.local`로 복사하고 `OPENAI_API_KEY`를 입력하세요. 키가 없으면 앱은 내장 샘플 에이전트로 동작합니다.
 
+Google 지도 기반 실시간 장소 추천을 쓰려면 Google Cloud에서 Places API (New)를 활성화하고 `GOOGLE_PLACES_API_KEY`를 추가하세요. 키가 있으면 평점과 후기 수를 참고해 관광지, 맛집, 우천 대안 후보를 우선 배치합니다.
+
 ## 포함 기능
 
 - 대화형 여행 일정 생성

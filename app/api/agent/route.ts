@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { applyLiveCandidatesToDraft, getLivePlaceCandidates } from "@/lib/live-places";
 import { buildFallbackTrip, reviseTrip } from "@/lib/sample-agent";
 import type { Trip, TripDraft } from "@/lib/types";
 
@@ -29,7 +30,10 @@ const SYSTEM_PROMPT = `
 async function generateWithOpenAI(draft: TripDraft) {
   if (!process.env.OPENAI_API_KEY) return null;
 
-  const fallback = buildFallbackTrip(draft);
+  const live = await getLivePlaceCandidates(draft.destination);
+  const livePlaces = [...live.attractions, ...live.food, ...live.rainy];
+  const enrichedDraft = applyLiveCandidatesToDraft(draft, live);
+  const fallback = buildFallbackTrip(enrichedDraft, livePlaces);
 
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
@@ -40,7 +44,7 @@ async function generateWithOpenAI(draft: TripDraft) {
     body: JSON.stringify({
       model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
       instructions: SYSTEM_PROMPT,
-      input: `다음 초안을 기반으로 여행 일정을 보강해줘. 기존 JSON 스키마와 동일하게 반환해.\n${JSON.stringify(fallback)}`,
+      input: `다음 초안을 기반으로 여행 일정을 보강해줘. 기존 JSON 스키마와 동일하게 반환해. Google Places 후보는 평점과 후기 수를 근거로 우선 반영하되, 시간대와 동선이 어색하면 재배치해.\n${JSON.stringify(fallback)}`,
       tools: [{ type: "web_search_preview" }]
     })
   });
@@ -63,7 +67,13 @@ export async function POST(request: Request) {
     const body = (await request.json()) as AgentBody;
 
     if (body.mode === "generate") {
-      const trip = (await generateWithOpenAI(body.draft)) ?? buildFallbackTrip(body.draft);
+      const openAiTrip = await generateWithOpenAI(body.draft);
+      if (openAiTrip) return NextResponse.json({ trip: openAiTrip });
+
+      const live = await getLivePlaceCandidates(body.draft.destination);
+      const livePlaces = [...live.attractions, ...live.food, ...live.rainy];
+      const enrichedDraft = applyLiveCandidatesToDraft(body.draft, live);
+      const trip = buildFallbackTrip(enrichedDraft, livePlaces);
       return NextResponse.json({ trip });
     }
 

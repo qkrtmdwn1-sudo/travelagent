@@ -138,16 +138,14 @@ export function TripPlanner() {
   useEffect(() => {
     setSelectedMustVisits((current) => {
       const currentFromPreset = current.filter((item) => mustVisitOptions.includes(item));
-      const customItems = current.filter((item) => !preset.mustVisits.includes(item));
-      return currentFromPreset.length ? [...currentFromPreset, ...customItems] : [...mustVisitOptions.slice(0, 3), ...customItems];
+      return currentFromPreset.length ? currentFromPreset : mustVisitOptions.slice(0, 3);
     });
   }, [mustVisitOptions, preset.mustVisits]);
 
   useEffect(() => {
     setSelectedFoodAreas((current) => {
       const currentFromPreset = current.filter((item) => foodOptions.includes(item));
-      const customItems = current.filter((item) => !preset.foodAreas.includes(item));
-      return currentFromPreset.length ? [...currentFromPreset, ...customItems] : [foodOptions[0], ...customItems].filter(Boolean);
+      return currentFromPreset.length ? currentFromPreset : [foodOptions[0]].filter(Boolean);
     });
   }, [foodOptions, preset.foodAreas]);
 
@@ -418,7 +416,12 @@ export function TripPlanner() {
                 {hasPreset ? (
                   <div className="chip-row">
                     {preset.rainyOptions.map((item) => (
-                      <button className="chip" type="button" key={item} onClick={() => toggleSelection(`우천 대안: ${item}`, selectedInterests, setSelectedInterests)}>
+                      <button
+                        className={`chip ${selectedInterests.includes(`우천 대안: ${item}`) ? "selected" : ""}`}
+                        type="button"
+                        key={item}
+                        onClick={() => toggleSelection(`우천 대안: ${item}`, selectedInterests, setSelectedInterests)}
+                      >
                         {item}
                       </button>
                     ))}
