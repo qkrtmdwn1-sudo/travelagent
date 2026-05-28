@@ -4,6 +4,7 @@ type GooglePlace = {
   displayName?: { text?: string; languageCode?: string };
   formattedAddress?: string;
   googleMapsUri?: string;
+  location?: { latitude?: number; longitude?: number };
   rating?: number;
   userRatingCount?: number;
   types?: string[];
@@ -15,6 +16,10 @@ export type LivePlaceCandidate = {
   url: string;
   rating: number;
   userRatingCount: number;
+  location?: {
+    lat: number;
+    lng: number;
+  };
   score: number;
   kind: "attraction" | "food" | "rainy";
 };
@@ -23,6 +28,7 @@ const fieldMask = [
   "places.displayName",
   "places.formattedAddress",
   "places.googleMapsUri",
+  "places.location",
   "places.rating",
   "places.userRatingCount",
   "places.types"
@@ -62,6 +68,10 @@ async function searchPlaces(textQuery: string, kind: LivePlaceCandidate["kind"])
       url: place.googleMapsUri ?? "",
       rating: place.rating ?? 0,
       userRatingCount: place.userRatingCount ?? 0,
+      location:
+        typeof place.location?.latitude === "number" && typeof place.location.longitude === "number"
+          ? { lat: place.location.latitude, lng: place.location.longitude }
+          : undefined,
       score: scorePlace(place),
       kind
     }))

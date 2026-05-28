@@ -89,6 +89,69 @@ function pickConcretePlace(candidates: string[], usedPlaces: Set<string>, fallba
   return uniquePick(filtered.length ? filtered : candidates.filter(Boolean), usedPlaces, fallback);
 }
 
+function distanceKm(a: NonNullable<ItineraryItem["location"]>, b: NonNullable<ItineraryItem["location"]>) {
+  const earthKm = 6371;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const lat1 = (a.lat * Math.PI) / 180;
+  const lat2 = (b.lat * Math.PI) / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * earthKm * Math.asin(Math.sqrt(h));
+}
+
+function nearestNeighbor(items: ItineraryItem[], start?: ItineraryItem) {
+  const remaining = [...items];
+  const ordered: ItineraryItem[] = [];
+  let current = start;
+
+  if (!current) {
+    current = remaining.shift();
+    if (current) ordered.push(current);
+  }
+
+  while (remaining.length) {
+    if (!current?.location) {
+      ordered.push(...remaining);
+      break;
+    }
+
+    let bestIndex = 0;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    remaining.forEach((item, index) => {
+      if (!item.location) return;
+      const distance = distanceKm(current!.location!, item.location);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestIndex = index;
+      }
+    });
+
+    current = remaining.splice(bestIndex, 1)[0];
+    ordered.push(current);
+  }
+
+  return ordered;
+}
+
+function optimizeDayRoute(items: ItineraryItem[]) {
+  const withLocation = items.filter((item) => item.location);
+  if (withLocation.length < 3) return items;
+
+  const timeSlots = items.map((item) => item.time).sort();
+  const nightItems = items.filter((item) => item.location && isNightPlace(item.placeName));
+  const dayItems = items.filter((item) => item.location && !isNightPlace(item.placeName));
+  const noLocationItems = items.filter((item) => !item.location);
+  const orderedDay = nearestNeighbor(dayItems);
+  const orderedNight = nearestNeighbor(nightItems, orderedDay[orderedDay.length - 1]);
+  const ordered = [...orderedDay, ...noLocationItems, ...orderedNight];
+
+  return ordered.map((item, index) => ({
+    ...item,
+    time: timeSlots[index] ?? item.time,
+    description: index === 0 ? item.description : `${item.description} 지도상 가까운 순서로 동선을 재정렬했습니다.`
+  }));
+}
+
 function dayTemplate(destination: string, dayIndex: number, pace: TripDraft["pace"], mustVisits: string[], usedPlaces: Set<string>, areaName: string, foodAreas: string[]): ItineraryItem[] {
   const relaxed = pace === "여유롭게";
   const concretePlaces = mustVisits.filter((place) => !place.includes("확인 필요"));
@@ -132,33 +195,36 @@ export function buildFallbackTrip(draft: TripDraft, livePlaces?: LivePlaceCandid
     date,
     area: `${draft.destination} ${preset.dayAreas[index % preset.dayAreas.length] || `${index + 1}일차`}`,
     weatherSummary: "여행 날짜가 가까워지면 최신 예보를 다시 확인하세요. 장기 예보는 변동 가능성이 큽니다.",
-    items: dayTemplate(
-      draft.destination,
-      index,
-      draft.pace,
-      recommendedMustVisits,
-      usedPlaces,
-      preset.dayAreas[index % preset.dayAreas.length] || `${draft.destination} ${index + 1}일차`,
-      [...foodPreferences, ...preset.foodAreas]
-    ).map((item) => {
-      const livePlace = livePlaceMap.get(item.placeName);
-      const liveSource = livePlace?.url
-        ? [
-            {
-              label: `Google 평점 ${livePlace.rating.toFixed(1)} (${livePlace.userRatingCount.toLocaleString("ko-KR")}개)`,
-              url: livePlace.url,
-              checkedAt,
-              kind: "map" as const
-            }
-          ]
-        : [];
+    items: optimizeDayRoute(
+      dayTemplate(
+        draft.destination,
+        index,
+        draft.pace,
+        recommendedMustVisits,
+        usedPlaces,
+        preset.dayAreas[index % preset.dayAreas.length] || `${draft.destination} ${index + 1}일차`,
+        [...foodPreferences, ...preset.foodAreas]
+      ).map((item) => {
+        const livePlace = livePlaceMap.get(item.placeName);
+        const liveSource = livePlace?.url
+          ? [
+              {
+                label: `Google 평점 ${livePlace.rating.toFixed(1)} (${livePlace.userRatingCount.toLocaleString("ko-KR")}개)`,
+                url: livePlace.url,
+                checkedAt,
+                kind: "map" as const
+              }
+            ]
+          : [];
 
-      return {
-        ...item,
-        estimatedCost: livePlace ? "장소 상세에서 최신 비용 확인" : item.estimatedCost,
-        sourceLinks: [...liveSource, ...item.sourceLinks, weatherLink(draft.destination)]
-      };
-    })
+        return {
+          ...item,
+          location: livePlace?.location,
+          estimatedCost: livePlace ? "장소 상세에서 최신 비용 확인" : item.estimatedCost,
+          sourceLinks: [...liveSource, ...item.sourceLinks, weatherLink(draft.destination)]
+        };
+      })
+    )
   }));
 
   const agentQuestions: AgentQuestion[] = [

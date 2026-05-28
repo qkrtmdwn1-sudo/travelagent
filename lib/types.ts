@@ -17,6 +17,10 @@ export type ItineraryItem = {
   time: string;
   placeName: string;
   localName?: string;
+  location?: {
+    lat: number;
+    lng: number;
+  };
   description: string;
   move: string;
   meal?: string;

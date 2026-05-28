@@ -94,8 +94,9 @@ function tripToIcs(trip: Trip) {
   return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Travel Agent MVP//KO", ...events, "END:VCALENDAR"].join("\r\n");
 }
 
-function placeQuery(destination: string, placeName: string) {
-  return `${destination} ${placeName}`;
+function placeQuery(destination: string, item: { placeName: string; location?: { lat: number; lng: number } }) {
+  if (item.location) return `${item.location.lat},${item.location.lng}`;
+  return `${destination} ${item.placeName}`;
 }
 
 function estimateMoveTime(move: string) {
@@ -109,7 +110,7 @@ function estimateMoveTime(move: string) {
 }
 
 function buildDirectionsUrl(destination: string, items: { placeName: string }[]) {
-  const places = items.slice(0, 8).map((item) => placeQuery(destination, item.placeName));
+  const places = items.slice(0, 8).map((item) => placeQuery(destination, item));
   const origin = places[0] ?? destination;
   const final = places[places.length - 1] ?? destination;
   const waypoints = places.slice(1, -1).join("|");
@@ -125,7 +126,7 @@ function buildDirectionsUrl(destination: string, items: { placeName: string }[])
 }
 
 function buildEmbedMapUrl(destination: string, items: { placeName: string }[]) {
-  const places = items.slice(0, 8).map((item) => placeQuery(destination, item.placeName));
+  const places = items.slice(0, 8).map((item) => placeQuery(destination, item));
   const origin = encodeURIComponent(places[0] ?? destination);
   const routeStops = places.slice(1).map((place) => encodeURIComponent(place)).join("+to:");
   return `https://www.google.com/maps?output=embed&saddr=${origin}&daddr=${routeStops}`;
